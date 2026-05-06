@@ -1,0 +1,189 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="ANN Learning Explainer — Interactive step-by-step visualization of Artificial Neural Networks.">
+    <title>ANN Learning Explainer — DeepVision</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=Playfair+Display:ital,wght@0,500;1,500&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="ann.css">
+    <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@4.17.0/dist/tf.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+</head>
+<body>
+
+    <!-- ===== TOP NAV ===== -->
+    <nav class="topnav">
+        <a href="index.html" class="topnav__back">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 12H5M12 19l-7-7 7-7"/></svg>
+            Back to Models
+        </a>
+        <span class="topnav__brand">DeepVision</span>
+    </nav>
+
+    <!-- ===== WIZARD LAYOUT ===== -->
+    <main class="wizard-container">
+        
+        <!-- LEFT SIDEBAR: Educational Context & Controls -->
+        <aside class="wizard-sidebar">
+            <div class="ann-hero__badge" style="margin-bottom:16px;">Step-by-Step Explainer</div>
+            <h1 class="sidebar-title">Artificial Neural Network</h1>
+
+            <!-- STEP -1: ARCHITECTURE OVERVIEW (shown first) -->
+            <div class="step-content active" id="step-intro-content">
+                <h2>What is an ANN?</h2>
+                <p>An <strong style="color:#fff;">Artificial Neural Network (ANN)</strong> is a densely connected network inspired by the human brain. Every neuron in one layer connects to every neuron in the next — this is called a <em>fully connected</em> or <em>dense</em> architecture.</p>
+                <p>Unlike CNNs, ANNs have <strong style="color:#fff;">no spatial awareness</strong>. A 28×28 image is flattened into a single vector of 784 numbers before being processed.</p>
+
+                <div style="margin:20px 0; display:grid; grid-template-columns:1fr 1fr; gap:8px;">
+                    <div style="background:rgba(59,130,246,0.08); border:1px solid rgba(59,130,246,0.2); border-radius:8px; padding:12px; text-align:center;">
+                        <div style="font-size:22px; font-weight:700; color:#3b82f6; font-family:'JetBrains Mono',monospace;">784</div>
+                        <div style="font-size:10px; color:#64748b; text-transform:uppercase; font-weight:600;">Input Neurons</div>
+                    </div>
+                    <div style="background:rgba(59,130,246,0.08); border:1px solid rgba(59,130,246,0.2); border-radius:8px; padding:12px; text-align:center;">
+                        <div style="font-size:22px; font-weight:700; color:#3b82f6; font-family:'JetBrains Mono',monospace;">128</div>
+                        <div style="font-size:10px; color:#64748b; text-transform:uppercase; font-weight:600;">Hidden Layer 1</div>
+                    </div>
+                    <div style="background:rgba(139,92,246,0.08); border:1px solid rgba(139,92,246,0.2); border-radius:8px; padding:12px; text-align:center;">
+                        <div style="font-size:22px; font-weight:700; color:#8b5cf6; font-family:'JetBrains Mono',monospace;">64</div>
+                        <div style="font-size:10px; color:#64748b; text-transform:uppercase; font-weight:600;">Hidden Layer 2</div>
+                    </div>
+                    <div style="background:rgba(16,185,129,0.08); border:1px solid rgba(16,185,129,0.2); border-radius:8px; padding:12px; text-align:center;">
+                        <div style="font-size:22px; font-weight:700; color:#10b981; font-family:'JetBrains Mono',monospace;">10</div>
+                        <div style="font-size:10px; color:#64748b; text-transform:uppercase; font-weight:600;">Output (Softmax)</div>
+                    </div>
+                </div>
+
+                <h2 style="margin-top:24px;">What is AdamW?</h2>
+                <p><strong style="color:#fff;">AdamW</strong> (Adam with decoupled Weight decay) is the optimizer that updates the weights during training. It combines:</p>
+                <ul style="padding-left:20px; color:#94a3b8; font-size:13px; line-height:1.8;">
+                    <li><strong style="color:#ef4444;">Gradient (g):</strong> Direction of steepest loss descent</li>
+                    <li><strong style="color:#3b82f6;">Momentum (m):</strong> Smoothed average of past gradients</li>
+                    <li><strong style="color:#a855f7;">Velocity (v):</strong> Smoothed average of squared gradients</li>
+                    <li><strong style="color:#f59e0b;">Weight Decay (λ·w):</strong> Shrinks weights to prevent overfitting</li>
+                </ul>
+
+                <div style="background:rgba(255,255,255,0.03); border:1px solid rgba(255,255,255,0.1); border-radius:8px; padding:16px; margin-top:16px;">
+                    <div style="font-size:10px; color:#64748b; text-transform:uppercase; font-weight:700; letter-spacing:0.05em; margin-bottom:10px;">AdamW Update Rule</div>
+                    <div style="font-family:'JetBrains Mono',monospace; font-size:13px; color:#e2e8f0; line-height:2;">
+                        m<sub>t</sub> = β₁·m<sub>t-1</sub> + (1-β₁)·g<sub>t</sub><br>
+                        v<sub>t</sub> = β₂·v<sub>t-1</sub> + (1-β₂)·g<sub>t</sub>²<br>
+                        <span style="color:#10b981;">w = w - lr · m̂<sub>t</sub>/(√v̂<sub>t</sub> + ε)</span> <span style="color:#ef4444;">- λ·w</span>
+                    </div>
+                    <div style="font-size:11px; color:#64748b; margin-top:8px;">The <span style="color:#ef4444;">red term</span> is weight decay — unique to AdamW vs standard Adam</div>
+                </div>
+
+                <div style="margin-top:20px; padding:12px; background:rgba(16,185,129,0.05); border:1px solid rgba(16,185,129,0.2); border-radius:8px;">
+                    <div style="font-size:12px; color:#10b981; font-weight:600;">🧠 Learning Pipeline</div>
+                    <div style="font-size:12px; color:#94a3b8; margin-top:6px; line-height:1.6;">
+                        Input → Forward Prop → Loss → Backprop → AdamW Update → Repeat
+                    </div>
+                </div>
+            </div>
+            
+            <!-- STEP 0: INITIALIZATION -->
+            <div class="step-content" id="step-0-content">
+                <h2>Step 1: Input Data Selection</h2>
+                <p>Before a network can learn, it needs data. Select an authentic MNIST handwritten digit to feed into the Artificial Neural Network.</p>
+                <div style="display:flex; justify-content:space-between; align-items:center; margin: 16px 0 8px;">
+                    <h3 style="margin:0; font-size:12px; color:#94a3b8; text-transform:uppercase;">Dataset Samples</h3>
+                    <span id="loading-status" style="font-size:12px; color:#10b981;">Loading...</span>
+                </div>
+                <div class="mnist-grid" id="mnist-grid">
+                    <!-- Canvas elements injected here via JS -->
+                </div>
+                <button class="btn btn--secondary" id="btn-random-sample" style="width:100%; margin-top:12px;">Pick Random Sample</button>
+
+                <div class="selected-display" id="selected-display" style="display:none; margin-top:24px;">
+                    <div style="display:flex; gap:16px; align-items:center;">
+                        <canvas id="selected-input-canvas" width="28" height="28" style="width:64px; height:64px; background:#000; border:1px solid #333; border-radius:8px; image-rendering:pixelated;"></canvas>
+                        <div>
+                            <div class="selected-label">Ground Truth Label</div>
+                            <div class="selected-label-value" id="selected-label-value">-</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- STEP 1: FORWARD PROPAGATION -->
+            <div class="step-content" id="step-1-content">
+                <h2>Step 2: Forward Propagation</h2>
+                <p>The 784 pixels of your image are flattened and fed into the <strong>Input Layer</strong>. The data flows left-to-right through the hidden layers.</p>
+                <p>Each connection multiplies the signal by a <em>Weight</em>, and each node applies an Activation Function (ReLU) to decide how strongly it should "fire".</p>
+                <div class="network-log" id="log-forward">Waiting for propagation...</div>
+            </div>
+
+            <!-- STEP 2: PREDICTION & LOSS -->
+            <div class="step-content" id="step-2-content">
+                <h2>Step 3: Error Calculation</h2>
+                <p>The final layer applies a <em>Softmax</em> function to output a probability distribution across the 10 possible digits (0-9).</p>
+                
+                <h3 style="margin-top:24px; font-size:14px; color:#fff;">Network Prediction:</h3>
+                <div class="prob-bars" id="prob-bars"></div>
+
+                <div class="loss-metric" style="margin-top:24px;">
+                    <div class="loss-metric__title">Categorical Crossentropy Loss</div>
+                    <div class="loss-metric__value" id="loss-value-display">--</div>
+                    <div class="loss-bar-container"><div class="loss-bar-fill" id="loss-bar-fill"></div></div>
+                </div>
+                <p style="font-size:13px; margin-top:12px;">This "Loss" value represents how wrong the network was compared to the true label.</p>
+            </div>
+
+            <!-- STEP 3: BACKPROPAGATION -->
+            <div class="step-content" id="step-3-content">
+                <h2>Step 4: Backpropagation</h2>
+                <p>To learn from its mistake, the network calculates the <strong>Gradient</strong> (the direction of steepest descent) of the Loss with respect to every single weight using the Chain Rule of calculus.</p>
+                <p>Notice the signal flowing backwards (Right-to-Left):</p>
+                <ul class="legend-list">
+                    <li><span class="dot" style="background:#ef4444"></span> <strong>Red Pulse:</strong> Negative gradient (decrease weight)</li>
+                    <li><span class="dot" style="background:#3b82f6"></span> <strong>Blue Pulse:</strong> Positive gradient (increase weight)</li>
+                </ul>
+            </div>
+
+            <!-- STEP 4: ADAMW & WEIGHT UPDATE -->
+            <div class="step-content" id="step-4-content">
+                <h2>Step 5: Weight Update (AdamW)</h2>
+                <p>Instead of just subtracting the gradient directly, modern networks use advanced optimizers like <strong>AdamW</strong> to adjust the weights smoothly.</p>
+                
+                <div class="adamw-dashboard">
+                    <div class="a-bar-row"><span class="a-bar-lbl">Gradient (g)</span><div class="a-bar-track"><div class="a-bar-fill" id="a-bar-g" style="background:#ef4444; width:0%"></div></div></div>
+                    <div class="a-bar-row"><span class="a-bar-lbl">Momentum (m)</span><div class="a-bar-track"><div class="a-bar-fill" id="a-bar-m" style="background:#3b82f6; width:0%"></div></div></div>
+                    <div class="a-bar-row"><span class="a-bar-lbl">Velocity (v)</span><div class="a-bar-track"><div class="a-bar-fill" id="a-bar-v" style="background:#a855f7; width:0%"></div></div></div>
+                </div>
+
+                <h3 style="margin-top:24px; font-size:14px; color:#fff;">Hidden Layer 1 Weights Heatmap</h3>
+                <canvas id="weight-heatmap" width="280" height="140" style="width:100%; height:140px; background:#000; border-radius:8px; border:1px solid #333; margin-top:8px; image-rendering:pixelated;"></canvas>
+            </div>
+
+        </aside>
+
+        <!-- RIGHT ARENA: Visualizations -->
+        <section class="wizard-arena">
+            <div class="ann-network-container" id="ann-svg-container">
+                <!-- SVG Network generated by JS -->
+            </div>
+        </section>
+    </main>
+
+    <!-- ===== ACTION BAR (BOTTOM) ===== -->
+    <div class="wizard-actionbar">
+        <div class="wizard-progress">
+            <div class="progress-dot active" id="dot-intro">0</div><div class="progress-line"></div>
+            <div class="progress-dot" id="dot-0">1</div><div class="progress-line"></div>
+            <div class="progress-dot" id="dot-1">2</div><div class="progress-line"></div>
+            <div class="progress-dot" id="dot-2">3</div><div class="progress-line"></div>
+            <div class="progress-dot" id="dot-3">4</div><div class="progress-line"></div>
+            <div class="progress-dot" id="dot-4">5</div>
+        </div>
+        
+        <button class="btn btn--primary btn--large" id="btn-next-step" disabled>
+            <span id="btn-next-text">Begin: Select Input Data →</span>
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
+        </button>
+    </div>
+
+    <script src="ann.js"></script>
+</body>
+</html>
