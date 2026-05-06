@@ -1,0 +1,403 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="YOLO Object Detection Explainer — Interactive visualization of how YOLO detects objects in real-time.">
+    <title>YOLO Explainer — DeepVision</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=Playfair+Display:ital,wght@0,500;1,500&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@latest"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@tensorflow-models/coco-ssd"></script>
+    <link rel="stylesheet" href="cnn.css">
+    <link rel="stylesheet" href="yolo.css">
+</head>
+<body>
+
+    <!-- ===== TOP NAV ===== -->
+    <nav class="topnav">
+        <a href="index.html" class="topnav__back">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 12H5M12 19l-7-7 7-7"/></svg>
+            Back to Models
+        </a>
+        <span class="topnav__brand">DeepVision</span>
+    </nav>
+
+    <!-- ===== 1. HERO & INTRO ===== -->
+    <header class="hero" id="hero">
+        <div class="container hero__container">
+            <div class="hero__image">
+                <canvas id="hero-yolo-canvas" width="400" height="400"></canvas>
+            </div>
+            <div class="hero__content">
+                <h1 class="hero__title">YOLO <span class="hero__title-thin">(You Only Look Once)</span></h1>
+                <p class="hero__subtitle">Understanding real-time, single-shot object detection</p>
+                <div class="hero__divider"></div>
+                <div class="intro__text">
+                    <p>YOLO (You Only Look Once) revolutionizes object detection by framing it as a single regression problem, straight from image pixels to bounding box coordinates and class probabilities. Unlike older methods that propose regions first, YOLO looks at the entire image at once, making it extremely fast and suitable for real-time applications.</p>
+                </div>
+                
+                <div class="hero__features-grid">
+                    <div class="hero-feature-card">
+                        <div class="hero-feature-card__icon">⚡</div>
+                        <div>
+                            <h3>Real-Time Speed</h3>
+                            <p>Processes entire images in a single forward pass</p>
+                        </div>
+                    </div>
+                    
+                    <div class="hero-feature-card">
+                        <div class="hero-feature-card__icon">👁️</div>
+                        <div>
+                            <h3>Global Context</h3>
+                            <p>Reasons about the whole image, reducing background errors</p>
+                        </div>
+                    </div>
+
+                    <!-- Formula Card (spans full width) -->
+                    <div class="hero-feature-card formula-card">
+                        <div class="resnet-formula">
+                            <div class="formula-term">
+                                <span class="formula-math">S × S</span>
+                                <span class="formula-label">Grid</span>
+                            </div>
+                            <div class="formula-op">×</div>
+                            <div class="formula-term">
+                                <span class="formula-math">(B * 5 + C)</span>
+                                <span class="formula-label">Predictions</span>
+                            </div>
+                            <div class="formula-op">=</div>
+                            <div class="formula-term">
+                                <span class="formula-math">Tensor</span>
+                                <span class="formula-label">Output</span>
+                            </div>
+                        </div>
+                        <p style="text-align: center; font-size: 0.85rem; color: #9ca3af; margin-top: 8px;">Confidence Score = Pr(Object) * IOU(truth, pred)</p>
+                    </div>
+
+                    <div class="hero-feature-card">
+                        <div class="hero-feature-card__icon">📐</div>
+                        <div>
+                            <h3>Anchor-Free (v8)</h3>
+                            <p>Modern YOLO versions predict object centers directly</p>
+                        </div>
+                    </div>
+                    
+                    <div class="hero-feature-card">
+                        <div class="hero-feature-card__icon">🎯</div>
+                        <div>
+                            <h3>High Precision</h3>
+                            <p>Balances speed with state-of-the-art mAP accuracy</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </header>
+
+    <!-- ===== ARCHITECTURE ===== -->
+    <section class="section architecture bg-white" id="architecture">
+        <div class="container-fluid" style="max-width: 100%; padding: 0 40px;">
+            <h2 class="section__title text-dark">YOLOv8 Architecture</h2>
+            <p class="section__desc text-gray">The data flow of modern single-shot detection</p>
+
+            <div class="arch-pipeline">
+                <!-- 1. Input -->
+                <div class="arch-card">
+                    <div class="arch-card__icon" style="color: #3b82f6; background: rgba(59,130,246,0.1);">📷</div>
+                    <h3>1. Input Image</h3>
+                    <p>Image is resized (e.g., 640x640) and normalized for the network.</p>
+                </div>
+                <div class="arch-connector">→</div>
+
+                <!-- 2. Backbone -->
+                <div class="arch-card">
+                    <div class="arch-card__icon" style="color: #8b5cf6; background: rgba(139,92,246,0.1);">🧬</div>
+                    <h3>2. Backbone (CSPDarknet)</h3>
+                    <p>Extracts rich feature maps at multiple scales using Cross Stage Partial networks.</p>
+                </div>
+                <div class="arch-connector">→</div>
+
+                <!-- 3. Neck -->
+                <div class="arch-card">
+                    <div class="arch-card__icon" style="color: #06b6d4; background: rgba(6,182,212,0.1);">🔗</div>
+                    <h3>3. Neck (PANet)</h3>
+                    <p>Fuses features from different backbone layers (bottom-up and top-down) to capture both semantic and spatial details.</p>
+                </div>
+                <div class="arch-connector">→</div>
+
+                <!-- 4. Head -->
+                <div class="arch-card">
+                    <div class="arch-card__icon" style="color: #f59e0b; background: rgba(245,158,11,0.1);">🧠</div>
+                    <h3>4. Head (Decoupled)</h3>
+                    <p>Splits into two branches: one predicts bounding box coordinates, the other predicts class probabilities.</p>
+                </div>
+                <div class="arch-connector">→</div>
+
+                <!-- 5. Output -->
+                <div class="arch-card">
+                    <div class="arch-card__icon" style="color: #ef4444; background: rgba(239,68,68,0.1);">🎯</div>
+                    <h3>5. Output & NMS</h3>
+                    <p>Filters thousands of predictions using Non-Maximum Suppression to yield final clean bounding boxes.</p>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- ===== INTERACTIVE VISUAL LEARNING ===== -->
+    <section class="section interactive-learning" id="interactive-learning">
+        <div class="container-fluid" style="max-width: 1200px; margin: 0 auto;">
+            
+            <!-- STEP 1: Input -->
+            <div class="step-card">
+                <div class="step-card__header">
+                    <div class="step-number">1</div>
+                    <h2 class="step-title">Input Image Selection</h2>
+                </div>
+                <div class="step-card__body">
+                    <p class="step-desc">Select an image to see how YOLO processes it. We have included sample images commonly found in generic datasets.</p>
+                    
+                    <div class="input-upload-layout">
+                        <div class="upload-zone" id="upload-zone">
+                            <input type="file" id="image-upload-input" accept="image/*" hidden>
+                            <div class="upload-icon">
+                                <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M17 8l-5-5-5 5M12 3v12"/></svg>
+                            </div>
+                            <p>Click to browse or drag & drop</p>
+                            <span class="upload-hint">Try a clear image with multiple objects, or <a href="#" id="use-sample" style="color: #3b82f6; text-decoration: underline;">use a sample image</a></span>
+                        </div>
+                        
+                        <div class="preview-zone" id="preview-zone" style="display: none;">
+                            <div class="preview-container">
+                                <canvas id="input-preview-canvas" width="400" height="400"></canvas>
+                            </div>
+                            <div class="preview-metadata" id="preview-metadata"></div>
+                        </div>
+                    </div>
+                    
+                    <div class="step-actions">
+                        <button class="btn-primary" id="btn-send-model" disabled>Process Image 👉</button>
+                    </div>
+                </div>
+            </div>
+
+            <div class="step-connector" id="step-connector-1-2" style="display: none;">
+                <div class="connector-line"></div>
+                <div class="connector-pulse"></div>
+            </div>
+
+            <!-- STEP 2: Grid Division -->
+            <div class="step-card" id="step-2" style="display: none;">
+                <div class="step-card__header">
+                    <div class="step-number">2</div>
+                    <h2 class="step-title">Grid Division <span class="hero__title-thin">– Spatial Splitting</span></h2>
+                </div>
+                <div class="step-card__body">
+                    <div class="tooltip-label">
+                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg>
+                        <div>
+                            <strong>How it works:</strong> YOLO divides the input image into an S × S grid. If the center of an object falls into a grid cell, that grid cell is responsible for detecting that object.
+                        </div>
+                    </div>
+                    <div class="yolo-vis-container">
+                        <div class="yolo-vis-controls">
+                            <label>Grid Size (S×S):</label>
+                            <input type="range" id="grid-slider" min="3" max="13" step="2" value="7">
+                            <span id="grid-val">7×7</span>
+                        </div>
+                        <div class="yolo-canvas-wrapper glow-cyan">
+                            <canvas id="grid-canvas" width="400" height="400"></canvas>
+                        </div>
+                        <button class="btn-primary" id="btn-step-2-next" style="margin-top: 20px;">Generate Bounding Boxes 👉</button>
+                    </div>
+                </div>
+            </div>
+
+            <div class="step-connector" id="step-connector-2-3" style="display: none;">
+                <div class="connector-line"></div>
+                <div class="connector-pulse"></div>
+            </div>
+
+            <!-- STEP 3: Bounding Box Predictions -->
+            <div class="step-card" id="step-3" style="display: none;">
+                <div class="step-card__header">
+                    <div class="step-number">3</div>
+                    <h2 class="step-title">Bounding Box Prediction <span class="hero__title-thin">– Regression</span></h2>
+                </div>
+                <div class="step-card__body">
+                    <div class="tooltip-label">
+                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg>
+                        <div>
+                            <strong>How it works:</strong> Each grid cell predicts multiple bounding boxes and confidence scores. These scores reflect how confident the model is that the box contains an object. Many cells predict bad boxes, resulting in a mess of thousands of overlapping predictions.
+                        </div>
+                    </div>
+                    <div class="yolo-vis-container">
+                        <div class="yolo-canvas-wrapper glow-magenta">
+                            <canvas id="bbox-canvas" width="400" height="400"></canvas>
+                        </div>
+                        <div class="yolo-stats" id="bbox-stats">
+                            Generating raw predictions...
+                        </div>
+                        <button class="btn-primary" id="btn-step-3-next" style="margin-top: 20px;">Evaluate Probabilities 👉</button>
+                    </div>
+                </div>
+            </div>
+
+            <div class="step-connector" id="step-connector-3-4" style="display: none;">
+                <div class="connector-line"></div>
+                <div class="connector-pulse"></div>
+            </div>
+
+            <!-- STEP 4: Class Probabilities -->
+            <div class="step-card" id="step-4" style="display: none;">
+                <div class="step-card__header">
+                    <div class="step-number">4</div>
+                    <h2 class="step-title">Class Probabilities <span class="hero__title-thin">– Classification</span></h2>
+                </div>
+                <div class="step-card__body">
+                    <div class="tooltip-label">
+                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg>
+                        <div>
+                            <strong>How it works:</strong> Simultaneously, each grid cell predicts class probabilities (e.g., Person, Car, Dog). Hover over a grid cell to see the highest probability class it predicted.
+                        </div>
+                    </div>
+                    <div class="yolo-vis-container">
+                        <div class="yolo-canvas-wrapper glow-gold">
+                            <canvas id="class-canvas" width="400" height="400"></canvas>
+                            <div id="class-tooltip" class="fc-tooltip" style="display:none; position: absolute; background: rgba(0,0,0,0.8); border: 1px solid #f59e0b; padding: 8px; color: white; border-radius: 4px; pointer-events: none; z-index: 10;"></div>
+                        </div>
+                        <div class="yolo-legend" id="class-legend" style="margin-top: 15px; display: flex; gap: 10px; justify-content: center; flex-wrap: wrap;">
+                            <!-- Legend items injected via JS -->
+                        </div>
+                        <button class="btn-primary" id="btn-step-4-next" style="margin-top: 20px;">Apply NMS 👉</button>
+                    </div>
+                </div>
+            </div>
+
+            <div class="step-connector" id="step-connector-4-5" style="display: none;">
+                <div class="connector-line"></div>
+                <div class="connector-pulse"></div>
+            </div>
+
+            <!-- STEP 5: Non-Maximum Suppression (NMS) -->
+            <div class="step-card" id="step-5" style="display: none;">
+                <div class="step-card__header">
+                    <div class="step-number">5</div>
+                    <h2 class="step-title">Non-Maximum Suppression <span class="hero__title-thin">– Filtering</span></h2>
+                </div>
+                <div class="step-card__body">
+                    <div class="tooltip-label">
+                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg>
+                        <div>
+                            <strong>How it works:</strong> YOLO uses NMS to clean up the messy predictions. It first discards all boxes with low confidence. Then, for remaining boxes that overlap heavily (high Intersection Over Union - IOU), it keeps only the one with the highest confidence.
+                        </div>
+                    </div>
+                    <div class="yolo-vis-container">
+                        <div class="yolo-vis-controls">
+                            <label>Confidence Threshold:</label>
+                            <input type="range" id="conf-slider" min="0" max="100" value="25">
+                            <span id="conf-val">0.25</span>
+                            
+                            <label style="margin-left: 20px;">IOU Threshold (NMS):</label>
+                            <input type="range" id="iou-slider" min="0" max="100" value="45">
+                            <span id="iou-val">0.45</span>
+                        </div>
+                        <div class="yolo-canvas-wrapper glow-cyan">
+                            <canvas id="nms-canvas" width="400" height="400"></canvas>
+                        </div>
+                        <div class="yolo-stats" id="nms-stats" style="margin-top: 15px; font-family: 'JetBrains Mono', monospace; font-size: 0.9rem; color: #9ca3af;">
+                            Boxes remaining: <span id="nms-count" style="color: #fff; font-weight: bold;">0</span>
+                        </div>
+                        <button class="btn-primary" id="btn-step-5-next" style="margin-top: 20px;">Show Final Output 👉</button>
+                    </div>
+                </div>
+            </div>
+
+            <div class="step-connector" id="step-connector-5-6" style="display: none;">
+                <div class="connector-line"></div>
+                <div class="connector-pulse"></div>
+            </div>
+
+            <!-- STEP 6: Final Output -->
+            <div class="step-card" id="step-6" style="display: none;">
+                <div class="step-card__header">
+                    <div class="step-number">6</div>
+                    <h2 class="step-title">Final Detection <span class="hero__title-thin">– Output</span></h2>
+                </div>
+                <div class="step-card__body">
+                    <div class="tooltip-label">
+                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg>
+                        <div>
+                            <strong>How it works:</strong> The final surviving bounding boxes, their predicted classes, and confidence percentages are rendered over the original image.
+                        </div>
+                    </div>
+                    <div class="yolo-vis-container">
+                        <div class="yolo-canvas-wrapper glow-gold" style="border: 2px solid #22c55e;">
+                            <canvas id="final-canvas" width="400" height="400"></canvas>
+                        </div>
+                        <div id="final-list" style="margin-top: 20px; display: flex; flex-direction: column; gap: 8px; width: 100%; max-width: 400px;">
+                            <!-- Final detections list -->
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- QUIZ SECTION -->
+            <div class="step-card" id="quiz-section" style="margin-top: 60px; border-top: 2px dashed #374151; padding-top: 40px; background: rgba(15, 23, 42, 0.4);">
+                <div class="step-card__header" style="justify-content: center; text-align: center;">
+                    <h2 class="step-title">Knowledge Check 🧠</h2>
+                </div>
+                <div class="step-card__body">
+                    <p class="step-desc" style="text-align: center;">Test your understanding of the YOLO architecture.</p>
+                    
+                    <div class="quiz-container" id="quiz-container" style="max-width: 600px; margin: 0 auto;">
+                        <div class="quiz-question" id="quiz-question-1">
+                            <h3>1. What is the main advantage of YOLO over older object detection methods (like R-CNN)?</h3>
+                            <div class="quiz-options">
+                                <button class="quiz-btn" data-correct="false">It uses deeper fully connected layers.</button>
+                                <button class="quiz-btn" data-correct="true">It processes the entire image in a single forward pass.</button>
+                                <button class="quiz-btn" data-correct="false">It only detects one object per image.</button>
+                            </div>
+                            <div class="quiz-feedback" style="display: none; margin-top: 10px; font-weight: bold;"></div>
+                        </div>
+
+                        <div class="quiz-question" id="quiz-question-2" style="display: none; margin-top: 30px;">
+                            <h3>2. If the center of an object falls into a specific grid cell, what is that cell responsible for?</h3>
+                            <div class="quiz-options">
+                                <button class="quiz-btn" data-correct="false">Drawing the entire image.</button>
+                                <button class="quiz-btn" data-correct="false">Ignoring the object.</button>
+                                <button class="quiz-btn" data-correct="true">Detecting that specific object.</button>
+                            </div>
+                            <div class="quiz-feedback" style="display: none; margin-top: 10px; font-weight: bold;"></div>
+                        </div>
+
+                        <div class="quiz-question" id="quiz-question-3" style="display: none; margin-top: 30px;">
+                            <h3>3. What is the purpose of Non-Maximum Suppression (NMS) in YOLO?</h3>
+                            <div class="quiz-options">
+                                <button class="quiz-btn" data-correct="true">To filter out overlapping bounding boxes and keep the best ones.</button>
+                                <button class="quiz-btn" data-correct="false">To increase the brightness of the image.</button>
+                                <button class="quiz-btn" data-correct="false">To divide the image into an S x S grid.</button>
+                            </div>
+                            <div class="quiz-feedback" style="display: none; margin-top: 10px; font-weight: bold;"></div>
+                        </div>
+
+                        <div class="quiz-result" id="quiz-result" style="display: none; text-align: center; margin-top: 40px; padding: 20px; background: rgba(34, 197, 94, 0.1); border: 1px solid #22c55e; border-radius: 8px;">
+                            <h3 style="color: #22c55e;">Quiz Completed! 🎉</h3>
+                            <p>You have a solid understanding of how YOLO works.</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+        </div>
+    </section>
+         
+    <!-- ===== FOOTER ===== -->
+    <footer class="footer">
+        <p>DeepVision © 2026 · YOLO Object Detection Explainer</p>
+    </footer>
+
+    <script src="yolo.js"></script>
+</body>
+</html>
