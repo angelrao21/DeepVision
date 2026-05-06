@@ -1,0 +1,952 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="GAN Learning Explainer — Interactive visualization of how Generative Adversarial Networks learn through competition between Generator and Discriminator.">
+    <title>GAN Learning Explainer — DeepVision</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=Playfair+Display:ital,wght@0,500;1,500&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="gan.css">
+    <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@4.17.0/dist/tf.min.js"></script>
+</head>
+<body>
+
+    <!-- ===== TOP NAV ===== -->
+    <nav class="topnav">
+        <a href="index.html" class="topnav__back">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 12H5M12 19l-7-7 7-7"/></svg>
+            Back to Models
+        </a>
+        <span class="topnav__brand">DeepVision</span>
+    </nav>
+
+    <!-- ===== 1. HERO ===== -->
+    <header class="gan-hero" id="hero">
+        <div class="gan-hero__bg">
+            <canvas id="hero-particles-canvas"></canvas>
+        </div>
+        <div class="gan-hero__content">
+            <div class="gan-hero__badge">
+                <span class="gan-hero__badge-dot"></span>
+                Generative AI
+            </div>
+            <h1 class="gan-hero__title">
+                <span class="gen-text">Generator</span> vs <span class="disc-text">Discriminator</span>
+            </h1>
+            <p class="gan-hero__subtitle">
+                Two neural networks locked in an adversarial battle — one creates, the other judges. Together, they learn to generate increasingly realistic data.
+            </p>
+            <div class="gan-hero__formula">
+                min<sub class="math-g">G</sub> max<sub class="math-d">D</sub> V(<span class="math-d">D</span>, <span class="math-g">G</span>) = 𝔼[log <span class="math-d">D</span>(x)] + 𝔼[log(1 − <span class="math-d">D</span>(<span class="math-g">G</span>(z)))]
+            </div>
+            <div class="protip" style="max-width:600px;margin:18px auto 0">
+                <span class="protip__icon">💡</span>
+                <span class="protip__text"><strong>Pro Tip:</strong> This formula is the GAN's "game rule." It says: the <em>Generator (G)</em> tries to <em>minimize</em> while the <em>Discriminator (D)</em> tries to <em>maximize</em> the same score — like a tug-of-war. 𝔼 means "expected value" (average outcome).</span>
+            </div>
+        </div>
+    </header>
+
+    <!-- ===== 2. BATTLE ARENA ===== -->
+    <section class="gan-section" id="battle">
+        <h2 class="gan-section__title reveal">The Adversarial Battle</h2>
+        <p class="gan-section__desc reveal">Two competing neural networks, each trying to outsmart the other — this is the core of a GAN.</p>
+        <div class="protip reveal">
+            <span class="protip__icon">💡</span>
+            <span class="protip__text"><strong>In Simple Terms:</strong> Think of a <em>counterfeiter</em> (Generator) trying to make fake money, and a <em>detective</em> (Discriminator) trying to spot it. As the detective gets better, the counterfeiter must improve too — both push each other to get smarter.</span>
+        </div>
+
+        <div class="battle-arena">
+            <div class="battle-layout reveal">
+                <!-- Generator -->
+                <article class="combatant combatant--gen">
+                    <div class="combatant__icon">🎨</div>
+                    <h3 class="combatant__name">Generator (G)</h3>
+                    <p class="combatant__role">The Forger</p>
+                    <p class="combatant__desc">Takes random noise as input and learns to transform it into realistic-looking data. Its goal is to fool the Discriminator into thinking its outputs are real.</p>
+                    <div style="margin-top:20px;display:flex;gap:8px;flex-wrap:wrap;justify-content:center">
+                        <span class="decision-fake">Creates Fake Data</span>
+                    </div>
+                </article>
+
+                <!-- VS -->
+                <div class="vs-divider">
+                    <div class="vs-divider__line"></div>
+                    <div class="vs-badge">VS</div>
+                    <div class="vs-divider__line"></div>
+                </div>
+
+                <!-- Discriminator -->
+                <article class="combatant combatant--disc">
+                    <div class="combatant__icon">🔍</div>
+                    <h3 class="combatant__name">Discriminator (D)</h3>
+                    <p class="combatant__role">The Detective</p>
+                    <p class="combatant__desc">Receives both real data and fake data from the Generator. It learns to distinguish between them — outputting the probability that the input is real.</p>
+                    <div style="margin-top:20px;display:flex;gap:8px;flex-wrap:wrap;justify-content:center">
+                        <span class="decision-real">✓ Real</span>
+                        <span class="decision-fake">✗ Fake</span>
+                    </div>
+                </article>
+            </div>
+        </div>
+    </section>
+
+    <!-- ===== 3. DATA FLOW PIPELINE ===== -->
+    <section class="gan-section pipeline-section" id="pipeline">
+        <h2 class="gan-section__title reveal">Data Flow Pipeline</h2>
+        <p class="gan-section__desc reveal">Follow how data moves through the GAN — from random noise to a final real/fake decision.</p>
+        <div class="protip protip--cyan reveal">
+            <span class="protip__icon">💡</span>
+            <span class="protip__text"><strong>What is "random noise"?</strong> It's just a list of random numbers (like rolling 100 dice). The Generator's job is to learn how to turn this randomness into a realistic image — the same way your brain might imagine a face from a vague description.</span>
+        </div>
+
+        <div class="pipeline-wrap">
+            <div class="pipeline reveal" id="gan-pipeline">
+                <!-- Noise -->
+                <div class="pipe-node pipe-node--noise">
+                    <div class="pipe-node__box" id="pipe-noise">
+                        <span class="pipe-node__icon"><svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,0.7)" stroke-width="1.5" stroke-linecap="round"><circle cx="5" cy="5" r="1.5" fill="rgba(255,255,255,0.5)"/><circle cx="17" cy="7" r="1.5" fill="rgba(255,255,255,0.5)"/><circle cx="9" cy="14" r="1.5" fill="rgba(255,255,255,0.5)"/><circle cx="19" cy="17" r="1.5" fill="rgba(255,255,255,0.5)"/><circle cx="6" cy="20" r="1.5" fill="rgba(255,255,255,0.5)"/><circle cx="14" cy="20" r="1.5" fill="rgba(255,255,255,0.5)"/><circle cx="12" cy="4" r="1" fill="rgba(255,255,255,0.3)"/><circle cx="3" cy="13" r="1" fill="rgba(255,255,255,0.3)"/><circle cx="20" cy="11" r="1" fill="rgba(255,255,255,0.3)"/></svg></span>
+                        <span>Noise (z)</span>
+                    </div>
+                    <span class="pipe-node__label">Random latent vector</span>
+                </div>
+
+                <!-- Arrow: Noise → Generator -->
+                <div class="pipe-arrow pipe-arrow--gen">
+                    <svg viewBox="0 0 48 24" fill="none">
+                        <line x1="4" y1="12" x2="38" y2="12" stroke="#e84393" stroke-width="2" stroke-dasharray="4 3"/>
+                        <polygon points="38,6 48,12 38,18" fill="#e84393" class="arrow-particle"/>
+                        <circle cx="16" cy="12" r="3" fill="#e84393" opacity="0.6" class="arrow-particle"/>
+                        <circle cx="28" cy="12" r="3" fill="#e84393" opacity="0.6" class="arrow-particle"/>
+                    </svg>
+                </div>
+
+                <!-- Generator -->
+                <div class="pipe-node pipe-node--gen">
+                    <div class="pipe-node__box" id="pipe-gen">
+                        <span class="pipe-node__icon"><svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="#e84393" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="3"/><circle cx="8" cy="8" r="2"/><circle cx="16" cy="8" r="2"/><circle cx="12" cy="16" r="2"/><line x1="8" y1="10" x2="12" y2="14"/><line x1="16" y1="10" x2="12" y2="14"/></svg></span>
+                        <span style="color:#e84393;font-weight:700">Generator</span>
+                    </div>
+                    <span class="pipe-node__label">Neural network transforms noise</span>
+                </div>
+
+                <!-- Arrow: Generator → Fake Image -->
+                <div class="pipe-arrow pipe-arrow--fake">
+                    <svg viewBox="0 0 48 24" fill="none">
+                        <line x1="4" y1="12" x2="38" y2="12" stroke="#ff6b6b" stroke-width="2" stroke-dasharray="4 3"/>
+                        <polygon points="38,6 48,12 38,18" fill="#ff6b6b" class="arrow-particle"/>
+                        <circle cx="16" cy="12" r="3" fill="#ff6b6b" opacity="0.6" class="arrow-particle"/>
+                        <circle cx="28" cy="12" r="3" fill="#ff6b6b" opacity="0.6" class="arrow-particle"/>
+                    </svg>
+                </div>
+
+                <!-- Fake Image -->
+                <div class="pipe-node pipe-node--fake">
+                    <div class="pipe-node__box" id="pipe-fake">
+                        <span class="pipe-node__icon"><svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="#ff6b6b" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 16l5-5 4 4 4-6 5 7"/><circle cx="8.5" cy="8.5" r="1.5"/></svg></span>
+                        <span style="color:#ff6b6b">Fake Image</span>
+                    </div>
+                    <span class="pipe-node__label">Generated output</span>
+                </div>
+
+                <!-- Arrow: Fake → Discriminator -->
+                <div class="pipe-arrow pipe-arrow--disc">
+                    <svg viewBox="0 0 48 24" fill="none">
+                        <line x1="4" y1="12" x2="38" y2="12" stroke="#00cec9" stroke-width="2" stroke-dasharray="4 3"/>
+                        <polygon points="38,6 48,12 38,18" fill="#00cec9" class="arrow-particle"/>
+                        <circle cx="16" cy="12" r="3" fill="#00cec9" opacity="0.6" class="arrow-particle"/>
+                        <circle cx="28" cy="12" r="3" fill="#00cec9" opacity="0.6" class="arrow-particle"/>
+                    </svg>
+                </div>
+
+                <!-- Discriminator -->
+                <div class="pipe-node pipe-node--disc">
+                    <div class="pipe-node__box" id="pipe-disc">
+                        <span class="pipe-node__icon"><svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="#00cec9" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2z"/><path d="M12 8v4l3 3"/><circle cx="12" cy="12" r="3" fill="none"/></svg></span>
+                        <span style="color:#00cec9;font-weight:700">Discriminator</span>
+                    </div>
+                    <span class="pipe-node__label">Evaluates authenticity</span>
+                </div>
+
+                <!-- Arrow: Discriminator → Decision -->
+                <div class="pipe-arrow pipe-arrow--decision">
+                    <svg viewBox="0 0 48 24" fill="none">
+                        <line x1="4" y1="12" x2="38" y2="12" stroke="#00b894" stroke-width="2" stroke-dasharray="4 3"/>
+                        <polygon points="38,6 48,12 38,18" fill="#00b894" class="arrow-particle"/>
+                        <circle cx="16" cy="12" r="3" fill="#00b894" opacity="0.6" class="arrow-particle"/>
+                        <circle cx="28" cy="12" r="3" fill="#00b894" opacity="0.6" class="arrow-particle"/>
+                    </svg>
+                </div>
+
+                <!-- Decision -->
+                <div class="pipe-node pipe-node--decision">
+                    <div class="pipe-node__box" id="pipe-decision">
+                        <span class="pipe-node__icon"><svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="#00b894" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v18"/><path d="M5 8l7-5 7 5"/><path d="M5 16l7 5 7-5"/><circle cx="5" cy="12" r="2"/><circle cx="19" cy="12" r="2"/></svg></span>
+                        <span>Decision</span>
+                    </div>
+                    <span class="pipe-node__label">
+                        <span class="decision-real" style="font-size:.65rem;padding:2px 8px">Real</span>
+                        <span class="decision-fake" style="font-size:.65rem;padding:2px 8px;margin-top:4px;display:inline-flex">Fake</span>
+                    </span>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- ===== 4. GENERATOR VISUALIZATION ===== -->
+    <section class="gan-section genvis-section" id="generator-vis">
+        <h2 class="gan-section__title reveal">Inside the Generator</h2>
+        <p class="gan-section__desc reveal">Watch how the Generator transforms random noise into structured, meaningful data — particle by particle.</p>
+        <div class="protip protip--pink reveal">
+            <span class="protip__icon">💡</span>
+            <span class="protip__text"><strong>Why start with noise?</strong> The Generator never sees real images directly. It only receives <em>random numbers</em> and a <em>learning signal</em> (gradient) telling it how to adjust. Over thousands of tries, these random dots gradually organize into recognizable patterns.</span>
+        </div>
+
+        <div class="genvis-wrap reveal">
+            <!-- Controls Bar -->
+            <div class="genvis-controls">
+                <div class="genvis-slider-group">
+                    <label class="genvis-label" for="noise-slider">
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2v20M2 12h20"/></svg>
+                        Noise Variation
+                    </label>
+                    <input type="range" id="noise-slider" class="genvis-slider" min="0" max="100" value="50">
+                    <span class="genvis-slider-val" id="noise-slider-val">50</span>
+                </div>
+                <div class="genvis-slider-group">
+                    <label class="genvis-label" for="learning-slider">
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/></svg>
+                        Learning Progress
+                    </label>
+                    <input type="range" id="learning-slider" class="genvis-slider" min="0" max="100" value="0">
+                    <span class="genvis-slider-val" id="learning-slider-val">0%</span>
+                </div>
+                <button class="loop-btn loop-btn--primary" id="genvis-generate-btn">⚡ Generate</button>
+                <button class="loop-btn" id="genvis-animate-btn">▶ Auto-Learn</button>
+            </div>
+
+            <!-- 3-Panel Canvas Layout -->
+            <div class="genvis-canvas-layout">
+                <!-- Noise Panel -->
+                <div class="genvis-panel">
+                    <h4 class="genvis-panel__title">Random Noise Vector <span class="genvis-panel__dim">z ∈ ℝ<sup>100</sup></span></h4>
+                    <div class="genvis-panel__canvas-wrap">
+                        <canvas id="genvis-noise-canvas" width="220" height="320"></canvas>
+                    </div>
+                    <p class="genvis-panel__hint">Each dot = one dimension of random noise</p>
+                </div>
+
+                <!-- Generator Network Panel (center) -->
+                <div class="genvis-panel genvis-panel--center">
+                    <h4 class="genvis-panel__title" style="color:var(--gen-color)">Generator Network <span class="genvis-panel__dim">G(z)</span></h4>
+                    <div class="genvis-panel__canvas-wrap genvis-panel__canvas-wrap--wide">
+                        <canvas id="genvis-network-canvas" width="360" height="320"></canvas>
+                    </div>
+                    <p class="genvis-panel__hint">Noise flows through layers, gaining structure</p>
+                </div>
+
+                <!-- Output Image Panel -->
+                <div class="genvis-panel">
+                    <h4 class="genvis-panel__title">Generated Output <span class="genvis-panel__dim">G(z) → Image</span></h4>
+                    <div class="genvis-panel__canvas-wrap genvis-panel__canvas-wrap--output" id="genvis-output-wrap">
+                        <canvas id="genvis-output-canvas" width="220" height="320"></canvas>
+                    </div>
+                    <p class="genvis-panel__hint" id="genvis-quality-label">Quality: Pure noise</p>
+                </div>
+            </div>
+
+            <!-- Info tooltip -->
+            <div class="genvis-info">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg>
+                <span>The Generator learns to map <strong>random noise → meaningful data</strong>. Drag the <em>Learning Progress</em> slider to see how quality improves. Change <em>Noise Variation</em> to generate different outputs from the same trained model.</span>
+            </div>
+        </div>
+    </section>
+
+    <!-- ===== 5. DISCRIMINATOR SPLIT-SCREEN ===== -->
+    <section class="gan-section disc-vis-section" id="discriminator-vis">
+        <h2 class="gan-section__title reveal">Inside the Discriminator</h2>
+        <p class="gan-section__desc reveal">Real data and fake data both enter the Discriminator — watch it classify each sample with a confidence score.</p>
+        <div class="protip protip--cyan reveal">
+            <span class="protip__icon">💡</span>
+            <span class="protip__text"><strong>What is a confidence score?</strong> It's how sure the Discriminator is about its decision, shown as a percentage. 95% "Real" means it's very confident the image came from the actual dataset, not the Generator.</span>
+        </div>
+
+        <div class="disc-vis-wrap reveal">
+            <div class="disc-split">
+                <!-- LEFT: Real Data -->
+                <div class="disc-side disc-side--real">
+                    <div class="disc-side__header">
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#00b894" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>
+                        <h4>Real Data</h4>
+                    </div>
+                    <div class="disc-side__grid" id="disc-real-grid">
+                        <!-- 4 real image canvases -->
+                        <canvas class="disc-thumb" id="disc-real-0" width="64" height="64"></canvas>
+                        <canvas class="disc-thumb" id="disc-real-1" width="64" height="64"></canvas>
+                        <canvas class="disc-thumb" id="disc-real-2" width="64" height="64"></canvas>
+                        <canvas class="disc-thumb" id="disc-real-3" width="64" height="64"></canvas>
+                    </div>
+                    <div class="disc-side__label">Training Dataset</div>
+                </div>
+
+                <!-- CENTER: Discriminator -->
+                <div class="disc-center">
+                    <div class="disc-flow-arrow disc-flow-arrow--real">
+                        <svg viewBox="0 0 24 60" fill="none"><line x1="12" y1="0" x2="12" y2="50" stroke="#00b894" stroke-width="2" stroke-dasharray="4 3"/><polygon points="6,50 12,60 18,50" fill="#00b894"/></svg>
+                    </div>
+                    <div class="disc-brain" id="disc-brain">
+                        <div class="disc-brain__icon">
+                            <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="#00cec9" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2z"/><path d="M12 8v4l3 3"/><circle cx="12" cy="12" r="3" fill="none"/></svg>
+                        </div>
+                        <h4>Discriminator</h4>
+                        <span class="disc-brain__sub">Binary Classifier</span>
+                    </div>
+                    <div class="disc-flow-arrow disc-flow-arrow--fake">
+                        <svg viewBox="0 0 24 60" fill="none"><line x1="12" y1="0" x2="12" y2="50" stroke="#ff6b6b" stroke-width="2" stroke-dasharray="4 3"/><polygon points="6,50 12,60 18,50" fill="#ff6b6b"/></svg>
+                    </div>
+                </div>
+
+                <!-- RIGHT: Fake Data -->
+                <div class="disc-side disc-side--fake">
+                    <div class="disc-side__header">
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#ff6b6b" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="15" y1="9" x2="9" y2="15"/><line x1="9" y1="9" x2="15" y2="15"/></svg>
+                        <h4>Fake Data</h4>
+                    </div>
+                    <div class="disc-side__grid" id="disc-fake-grid">
+                        <canvas class="disc-thumb" id="disc-fake-0" width="64" height="64"></canvas>
+                        <canvas class="disc-thumb" id="disc-fake-1" width="64" height="64"></canvas>
+                        <canvas class="disc-thumb" id="disc-fake-2" width="64" height="64"></canvas>
+                        <canvas class="disc-thumb" id="disc-fake-3" width="64" height="64"></canvas>
+                    </div>
+                    <div class="disc-side__label">Generator Output</div>
+                </div>
+            </div>
+
+            <!-- Decisions & Confidence -->
+            <div class="disc-decisions" id="disc-decisions">
+                <div class="disc-decision-card disc-decision-card--real" id="disc-dec-real">
+                    <div class="disc-decision-card__verdict">REAL</div>
+                    <div class="disc-decision-card__meter">
+                        <div class="disc-meter-bar">
+                            <div class="disc-meter-fill disc-meter-fill--real" id="disc-meter-real" style="width:0%"></div>
+                        </div>
+                        <span class="disc-meter-val" id="disc-conf-real">0%</span>
+                    </div>
+                    <span class="disc-decision-card__label">Confidence on real sample</span>
+                </div>
+                <div class="disc-decision-card disc-decision-card--fake" id="disc-dec-fake">
+                    <div class="disc-decision-card__verdict">FAKE</div>
+                    <div class="disc-decision-card__meter">
+                        <div class="disc-meter-bar">
+                            <div class="disc-meter-fill disc-meter-fill--fake" id="disc-meter-fake" style="width:0%"></div>
+                        </div>
+                        <span class="disc-meter-val" id="disc-conf-fake">0%</span>
+                    </div>
+                    <span class="disc-decision-card__label">Confidence on fake sample</span>
+                </div>
+            </div>
+
+            <!-- Controls -->
+            <div class="disc-vis-controls">
+                <button class="loop-btn loop-btn--primary" id="disc-classify-btn">⚡ Classify Samples</button>
+                <button class="loop-btn" id="disc-new-btn">↻ New Samples</button>
+            </div>
+        </div>
+    </section>
+
+    <!-- ===== 6. DISCRIMINATOR INTERNALS ===== -->
+    <section class="gan-section dinternals-section" id="disc-internals">
+        <h2 class="gan-section__title reveal">How the Discriminator Judges</h2>
+        <p class="gan-section__desc reveal">Watch an image flow through feature extraction layers to a final real/fake probability score — just like a CNN classifier.</p>
+        <div class="protip protip--cyan reveal">
+            <span class="protip__icon">💡</span>
+            <span class="protip__text"><strong>What are "feature maps"?</strong> Each layer of the neural network looks for specific patterns: <em>edges → shapes → textures → objects</em>. The Discriminator uses these patterns to decide if an image looks authentic or artificially generated.</span>
+        </div>
+
+        <div class="dinternals-wrap reveal">
+            <!-- Toggle: Real vs Fake input -->
+            <div class="dinternals-toggle">
+                <button class="ditoggle-btn ditoggle-btn--active" id="di-toggle-real" data-type="real">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>
+                    Feed Real Image
+                </button>
+                <button class="ditoggle-btn" id="di-toggle-fake" data-type="fake">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="15" y1="9" x2="9" y2="15"/><line x1="9" y1="9" x2="15" y2="15"/></svg>
+                    Feed Fake Image
+                </button>
+                <button class="loop-btn loop-btn--primary" id="di-run-btn">▶ Run Evaluation</button>
+            </div>
+
+            <!-- Pipeline: Input → Feature Maps → Dense → Output -->
+            <div class="dinternals-pipeline">
+
+                <!-- Stage 1: Input Image -->
+                <div class="di-stage" id="di-stage-input">
+                    <h5 class="di-stage__title">Input Image</h5>
+                    <div class="di-stage__canvas-wrap di-stage__canvas-wrap--input">
+                        <canvas id="di-input-canvas" width="80" height="80"></canvas>
+                    </div>
+                    <span class="di-stage__label" id="di-input-label">28×28 grayscale</span>
+                </div>
+
+                <!-- Arrow -->
+                <div class="di-arrow" id="di-arrow-1">
+                    <svg viewBox="0 0 40 24" fill="none"><line x1="2" y1="12" x2="30" y2="12" stroke="#00cec9" stroke-width="2" stroke-dasharray="3 3"/><polygon points="30,7 40,12 30,17" fill="#00cec9"/></svg>
+                </div>
+
+                <!-- Stage 2: Conv Feature Maps -->
+                <div class="di-stage" id="di-stage-conv">
+                    <h5 class="di-stage__title">Feature Extraction</h5>
+                    <div class="di-feature-grid">
+                        <div class="di-fmap-wrap"><canvas id="di-fmap-0" width="48" height="48"></canvas><span>Edges</span></div>
+                        <div class="di-fmap-wrap"><canvas id="di-fmap-1" width="48" height="48"></canvas><span>Shapes</span></div>
+                        <div class="di-fmap-wrap"><canvas id="di-fmap-2" width="48" height="48"></canvas><span>Texture</span></div>
+                        <div class="di-fmap-wrap"><canvas id="di-fmap-3" width="48" height="48"></canvas><span>Patterns</span></div>
+                    </div>
+                    <span class="di-stage__label">Conv + ReLU filters</span>
+                </div>
+
+                <!-- Arrow -->
+                <div class="di-arrow" id="di-arrow-2">
+                    <svg viewBox="0 0 40 24" fill="none"><line x1="2" y1="12" x2="30" y2="12" stroke="#00cec9" stroke-width="2" stroke-dasharray="3 3"/><polygon points="30,7 40,12 30,17" fill="#00cec9"/></svg>
+                </div>
+
+                <!-- Stage 3: Dense Layers -->
+                <div class="di-stage" id="di-stage-dense">
+                    <h5 class="di-stage__title">Dense Layers</h5>
+                    <div class="di-dense-wrap">
+                        <canvas id="di-dense-canvas" width="120" height="140"></canvas>
+                    </div>
+                    <span class="di-stage__label">Fully connected</span>
+                </div>
+
+                <!-- Arrow -->
+                <div class="di-arrow" id="di-arrow-3">
+                    <svg viewBox="0 0 40 24" fill="none"><line x1="2" y1="12" x2="30" y2="12" stroke="#00cec9" stroke-width="2" stroke-dasharray="3 3"/><polygon points="30,7 40,12 30,17" fill="#00cec9"/></svg>
+                </div>
+
+                <!-- Stage 4: Output -->
+                <div class="di-stage di-stage--output" id="di-stage-output">
+                    <h5 class="di-stage__title">Decision</h5>
+                    <div class="di-output-box" id="di-output-box">
+                        <div class="di-prob-row">
+                            <span class="di-prob-label di-prob-label--real">P(Real)</span>
+                            <div class="di-prob-bar"><div class="di-prob-fill di-prob-fill--real" id="di-prob-real"></div></div>
+                            <span class="di-prob-val" id="di-prob-real-val">—</span>
+                        </div>
+                        <div class="di-prob-row">
+                            <span class="di-prob-label di-prob-label--fake">P(Fake)</span>
+                            <div class="di-prob-bar"><div class="di-prob-fill di-prob-fill--fake" id="di-prob-fake"></div></div>
+                            <span class="di-prob-val" id="di-prob-fake-val">—</span>
+                        </div>
+                        <div class="di-verdict" id="di-verdict">Awaiting input…</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Status -->
+            <div class="di-status" id="di-status">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg>
+                <span>Select an input type and click <strong>Run Evaluation</strong> to see the Discriminator process the image step by step.</span>
+            </div>
+        </div>
+    </section>
+
+    <!-- ===== 7. TRAINING LOOP ===== -->
+    <section class="gan-section loop-section" id="training-loop">
+        <h2 class="gan-section__title reveal">The Training Loop</h2>
+        <p class="gan-section__desc reveal">Watch Generator and Discriminator compete in real-time — each improving as the other gets better.</p>
+
+        <div class="loop-wrap reveal">
+            <div class="loop-canvas-wrap">
+                <canvas id="training-loop-canvas"></canvas>
+                <div class="loop-overlay-text">
+                    <span class="highlight-gen">Generator</span> improves → <span class="highlight-disc">Discriminator</span> adapts → Cycle continues
+                </div>
+            </div>
+            <div class="loop-controls">
+                <button class="loop-btn loop-btn--primary" id="loop-play-btn">▶ Play Training</button>
+                <button class="loop-btn" id="loop-reset-btn">↻ Reset</button>
+            </div>
+        </div>
+    </section>
+
+    <!-- ===== 8. LOSS GAME — Tug of War ===== -->
+    <section class="gan-section lossgame-section" id="loss-game">
+        <h2 class="gan-section__title reveal">The Adversarial Loss Game</h2>
+        <p class="gan-section__desc reveal">GAN training is a minimax optimization — watch the Generator and Discriminator losses compete in a tug-of-war.</p>
+        <div class="protip protip--pink reveal">
+            <span class="protip__icon">💡</span>
+            <span class="protip__text"><strong>What is "loss"?</strong> Loss is a number that measures how wrong a network's predictions are. <em>Lower loss = better performance.</em> In a GAN, when one network's loss goes down, the other's goes up — like a seesaw. The ideal state is <strong>Nash Equilibrium</strong> — where neither can improve without the other also adapting.</span>
+        </div>
+
+        <div class="lossgame-wrap reveal">
+            <!-- Top: Tug of War visualization -->
+            <div class="tow-arena">
+                <div class="tow-side tow-side--gen">
+                    <div class="tow-avatar" id="tow-gen-avatar">
+                        <svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="#e84393" stroke-width="1.5"><rect x="3" y="3" width="18" height="18" rx="3"/><circle cx="8" cy="8" r="2"/><circle cx="16" cy="8" r="2"/><circle cx="12" cy="16" r="2"/><line x1="8" y1="10" x2="12" y2="14"/><line x1="16" y1="10" x2="12" y2="14"/></svg>
+                    </div>
+                    <span class="tow-name">Generator</span>
+                    <span class="tow-loss-val" id="tow-gen-loss">Loss: —</span>
+                </div>
+
+                <div class="tow-rope-wrap">
+                    <div class="tow-rope">
+                        <div class="tow-rope__bar" id="tow-rope-bar"></div>
+                        <div class="tow-rope__knot" id="tow-knot"></div>
+                    </div>
+                    <div class="tow-labels">
+                        <span class="tow-label-gen">G winning</span>
+                        <span class="tow-label-eq">≈ Equilibrium</span>
+                        <span class="tow-label-disc">D winning</span>
+                    </div>
+                </div>
+
+                <div class="tow-side tow-side--disc">
+                    <div class="tow-avatar" id="tow-disc-avatar">
+                        <svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="#00cec9" stroke-width="1.5"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2z"/><path d="M12 8v4l3 3"/><circle cx="12" cy="12" r="3" fill="none"/></svg>
+                    </div>
+                    <span class="tow-name">Discriminator</span>
+                    <span class="tow-loss-val" id="tow-disc-loss">Loss: —</span>
+                </div>
+            </div>
+
+            <!-- Loss Chart Canvas -->
+            <div class="lossgame-chart-wrap">
+                <canvas id="lossgame-chart" width="900" height="300"></canvas>
+                <div class="lossgame-legend">
+                    <span class="lossgame-legend-item lossgame-legend-item--gen"><span class="lossgame-dot" style="background:#e84393"></span> Generator Loss</span>
+                    <span class="lossgame-legend-item lossgame-legend-item--disc"><span class="lossgame-dot" style="background:#00cec9"></span> Discriminator Loss</span>
+                    <span class="lossgame-legend-item"><span class="lossgame-dot" style="background:rgba(255,255,255,0.3)"></span> Equilibrium</span>
+                </div>
+            </div>
+
+            <!-- Epoch & Controls -->
+            <div class="lossgame-controls">
+                <div class="lossgame-epoch" id="lossgame-epoch">Epoch: 0 / 300</div>
+                <div class="lossgame-btns">
+                    <button class="loop-btn loop-btn--primary" id="lg-play-btn">▶ Start Training</button>
+                    <button class="loop-btn" id="lg-reset-btn">↻ Reset</button>
+                </div>
+                <div class="lossgame-speed">
+                    <label>Speed</label>
+                    <input type="range" id="lg-speed" class="genvis-slider" min="1" max="5" value="3">
+                </div>
+            </div>
+
+            <!-- Minimax quote -->
+            <div class="lossgame-minimax">
+                <div class="lossgame-minimax__formula">
+                    min<sub style="color:#e84393">G</sub> max<sub style="color:#00cec9">D</sub> V(<span style="color:#00cec9">D</span>, <span style="color:#e84393">G</span>)
+                </div>
+                <p>"GAN training is a <strong>minimax optimization problem</strong> — the Generator minimizes what the Discriminator maximizes."</p>
+            </div>
+        </div>
+    </section>
+
+    <!-- ===== 9. STEP-BY-STEP TRAINING CYCLE ===== -->
+    <section class="gan-section traincycle-section" id="train-cycle">
+        <h2 class="gan-section__title reveal">Step-by-Step Training Cycle</h2>
+        <p class="gan-section__desc reveal">Follow each stage of a single GAN training iteration — from generating fake images to updating both networks.</p>
+
+        <div class="traincycle-wrap reveal">
+            <!-- Circular Flow Diagram -->
+            <div class="tc-ring">
+                <svg class="tc-ring__svg" viewBox="0 0 420 420" fill="none">
+                    <!-- Circular path (invisible, for reference) -->
+                    <!-- Connector arcs between nodes -->
+                    <path id="tc-arc-1" d="M 290 78 A 170 170 0 0 1 370 210" stroke="rgba(232,67,147,0.15)" stroke-width="2" stroke-dasharray="5 4" class="tc-arc"/>
+                    <path id="tc-arc-2" d="M 370 210 A 170 170 0 0 1 290 342" stroke="rgba(0,206,201,0.15)" stroke-width="2" stroke-dasharray="5 4" class="tc-arc"/>
+                    <path id="tc-arc-3" d="M 290 342 A 170 170 0 0 1 130 342" stroke="rgba(255,107,107,0.15)" stroke-width="2" stroke-dasharray="5 4" class="tc-arc"/>
+                    <path id="tc-arc-4" d="M 130 342 A 170 170 0 0 1 50 210" stroke="rgba(0,206,201,0.15)" stroke-width="2" stroke-dasharray="5 4" class="tc-arc"/>
+                    <path id="tc-arc-5" d="M 50 210 A 170 170 0 0 1 130 78" stroke="rgba(232,67,147,0.15)" stroke-width="2" stroke-dasharray="5 4" class="tc-arc"/>
+                </svg>
+
+                <!-- Step nodes positioned in a circle -->
+                <div class="tc-node tc-node--1" id="tc-node-0" data-step="0">
+                    <div class="tc-node__circle">
+                        <span class="tc-node__num">1</span>
+                    </div>
+                    <span class="tc-node__label">Generate<br>Fake Image</span>
+                </div>
+                <div class="tc-node tc-node--2" id="tc-node-1" data-step="1">
+                    <div class="tc-node__circle">
+                        <span class="tc-node__num">2</span>
+                    </div>
+                    <span class="tc-node__label">D Evaluates<br>Real vs Fake</span>
+                </div>
+                <div class="tc-node tc-node--3" id="tc-node-2" data-step="2">
+                    <div class="tc-node__circle">
+                        <span class="tc-node__num">3</span>
+                    </div>
+                    <span class="tc-node__label">Compute<br>Loss</span>
+                </div>
+                <div class="tc-node tc-node--4" id="tc-node-3" data-step="3">
+                    <div class="tc-node__circle">
+                        <span class="tc-node__num">4</span>
+                    </div>
+                    <span class="tc-node__label">Update<br>Discriminator</span>
+                </div>
+                <div class="tc-node tc-node--5" id="tc-node-4" data-step="4">
+                    <div class="tc-node__circle">
+                        <span class="tc-node__num">5</span>
+                    </div>
+                    <span class="tc-node__label">Update<br>Generator</span>
+                </div>
+
+                <!-- Center info -->
+                <div class="tc-center" id="tc-center">
+                    <div class="tc-center__iteration">Iteration <span id="tc-iter-num">0</span></div>
+                    <div class="tc-center__step" id="tc-step-title">Ready to begin</div>
+                </div>
+            </div>
+
+            <!-- Step Description Panel -->
+            <div class="tc-desc-panel" id="tc-desc-panel">
+                <div class="tc-desc__icon" id="tc-desc-icon">
+                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg>
+                </div>
+                <div class="tc-desc__text">
+                    <h5 id="tc-desc-title">GAN Training Cycle</h5>
+                    <p id="tc-desc-body">Click <strong>Next Step</strong> or <strong>Auto-Play</strong> to walk through each stage of a single GAN training iteration. The cycle repeats until both networks converge.</p>
+                </div>
+            </div>
+
+            <!-- Controls -->
+            <div class="tc-controls">
+                <button class="loop-btn loop-btn--primary" id="tc-next-btn">→ Next Step</button>
+                <button class="loop-btn" id="tc-auto-btn">▶ Auto-Play</button>
+                <button class="loop-btn" id="tc-reset-btn">↻ Reset</button>
+            </div>
+        </div>
+    </section>
+
+    <!-- ===== 10. GENERATOR EPOCH PROGRESSION ===== -->
+    <section class="gan-section epochprog-section" id="epoch-progress">
+        <h2 class="gan-section__title reveal">Generator Learning Progression</h2>
+        <p class="gan-section__desc reveal">Drag the slider to see how the Generator's output improves from random noise to realistic images across training epochs.</p>
+        <div class="protip reveal">
+            <span class="protip__icon">💡</span>
+            <span class="protip__text"><strong>What is an "epoch"?</strong> One epoch = the model has seen the <em>entire training dataset once</em>. After 100 epochs, the Generator has practiced generating images hundreds of thousands of times, which is why the output quality improves dramatically.</span>
+        </div>
+
+        <div class="epochprog-wrap reveal">
+            <!-- Stage milestones -->
+            <div class="ep-milestones">
+                <div class="ep-mile ep-mile--active" id="ep-mile-0" data-epoch="1">
+                    <canvas class="ep-mile__canvas" id="ep-mile-c0" width="80" height="80"></canvas>
+                    <span class="ep-mile__epoch">Epoch 1</span>
+                    <span class="ep-mile__label">Random Noise</span>
+                </div>
+                <div class="ep-mile-arrow">→</div>
+                <div class="ep-mile" id="ep-mile-1" data-epoch="10">
+                    <canvas class="ep-mile__canvas" id="ep-mile-c1" width="80" height="80"></canvas>
+                    <span class="ep-mile__epoch">Epoch 10</span>
+                    <span class="ep-mile__label">Blurry Shape</span>
+                </div>
+                <div class="ep-mile-arrow">→</div>
+                <div class="ep-mile" id="ep-mile-2" data-epoch="50">
+                    <canvas class="ep-mile__canvas" id="ep-mile-c2" width="80" height="80"></canvas>
+                    <span class="ep-mile__epoch">Epoch 50</span>
+                    <span class="ep-mile__label">Clearer Form</span>
+                </div>
+                <div class="ep-mile-arrow">→</div>
+                <div class="ep-mile" id="ep-mile-3" data-epoch="100">
+                    <canvas class="ep-mile__canvas" id="ep-mile-c3" width="80" height="80"></canvas>
+                    <span class="ep-mile__epoch">Epoch 100</span>
+                    <span class="ep-mile__label">Realistic</span>
+                </div>
+            </div>
+
+            <!-- Main preview -->
+            <div class="ep-main">
+                <div class="ep-main__canvas-wrap">
+                    <canvas id="ep-main-canvas" width="160" height="160"></canvas>
+                    <div class="ep-main__badge" id="ep-badge">Epoch 1</div>
+                </div>
+                <div class="ep-main__info">
+                    <div class="ep-quality-row">
+                        <span class="ep-quality-label">Image Quality</span>
+                        <div class="ep-quality-bar"><div class="ep-quality-fill" id="ep-quality-fill"></div></div>
+                        <span class="ep-quality-val" id="ep-quality-val">0%</span>
+                    </div>
+                    <div class="ep-quality-row">
+                        <span class="ep-quality-label">D Fooled Rate</span>
+                        <div class="ep-quality-bar"><div class="ep-quality-fill ep-quality-fill--fool" id="ep-fool-fill"></div></div>
+                        <span class="ep-quality-val" id="ep-fool-val">0%</span>
+                    </div>
+                    <p class="ep-main__desc" id="ep-stage-desc">Pure random noise — the Generator has not learned any structure yet.</p>
+                </div>
+            </div>
+
+            <!-- Slider + Controls -->
+            <div class="ep-slider-wrap">
+                <label class="ep-slider-label">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+                    Epoch
+                </label>
+                <input type="range" id="ep-slider" class="genvis-slider ep-slider" min="1" max="100" value="1">
+                <span class="ep-slider-val" id="ep-slider-val">1</span>
+                <button class="loop-btn" id="ep-animate-btn">▶ Animate</button>
+            </div>
+        </div>
+    </section>
+
+    <!-- ===== 11. LATENT SPACE ===== -->
+    <section class="gan-section latent-section" id="latent-space">
+        <h2 class="gan-section__title reveal">Latent Space Explorer</h2>
+        <p class="gan-section__desc reveal">Click anywhere on the 2D latent grid to generate an image — watch how nearby points produce similar outputs.</p>
+        <div class="protip protip--cyan reveal">
+            <span class="protip__icon">💡</span>
+            <span class="protip__text"><strong>What is "latent space"?</strong> Imagine a map where each point represents a different image the Generator can create. <em>Nearby points produce similar images</em> — so moving smoothly between points creates smooth transitions between generated outputs. The Generator has learned to organize this space meaningfully.</span>
+        </div>
+
+        <div class="latent-wrap reveal">
+            <div class="latent-layout">
+                <!-- Grid canvas -->
+                <div class="latent-grid-wrap">
+                    <canvas id="latent-grid" width="300" height="300"></canvas>
+                </div>
+                <!-- Preview -->
+                <div class="latent-preview">
+                    <span class="latent-preview__title">Generated Output</span>
+                    <canvas id="latent-output" width="120" height="120"></canvas>
+                    <div class="latent-coords" id="latent-coords">z = [0.00, 0.00]</div>
+                    <!-- Interpolation strip -->
+                    <div class="latent-interp-wrap">
+                        <span class="latent-preview__title" style="font-size:.66rem">Interpolation</span>
+                        <div class="latent-interp-row" id="latent-interp-row">
+                            <canvas id="interp-0" width="48" height="48"></canvas>
+                            <span class="interp-arrow">→</span>
+                            <canvas id="interp-1" width="48" height="48"></canvas>
+                            <span class="interp-arrow">→</span>
+                            <canvas id="interp-2" width="48" height="48"></canvas>
+                            <span class="interp-arrow">→</span>
+                            <canvas id="interp-3" width="48" height="48"></canvas>
+                            <span class="interp-arrow">→</span>
+                            <canvas id="interp-4" width="48" height="48"></canvas>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="latent-controls">
+                <button class="loop-btn loop-btn--primary" id="latent-interp-btn">⟳ New Interpolation</button>
+            </div>
+            <p class="latent-info">Each point in the 2D grid maps to a unique generated image. Smooth transitions between points show that the GAN has learned a <strong style="color:var(--gen-color)">continuous, structured</strong> representation of the data.</p>
+        </div>
+    </section>
+
+    <!-- ===== 12. BATTLE MODE ===== -->
+    <section class="gan-section battle-mode-section" id="battle-mode">
+        <h2 class="gan-section__title reveal">Real-Time Battle Mode</h2>
+        <p class="gan-section__desc reveal">Watch the Generator and Discriminator compete live — accuracy bars shift as each network fights for dominance.</p>
+
+        <div class="battlemode-wrap reveal">
+            <div class="bm-arena">
+                <div class="bm-side bm-side--gen" id="bm-gen-side">
+                    <div class="bm-side__name">Generator</div>
+                    <div class="bm-side__role">Fooling Rate</div>
+                    <div class="bm-bignum" id="bm-gen-pct">0%</div>
+                    <div class="bm-bar-wrap"><div class="bm-bar" id="bm-gen-bar" style="width:0%"></div></div>
+                    <div class="bm-side__samples">
+                        <canvas id="bm-gen-s0" width="48" height="48"></canvas>
+                        <canvas id="bm-gen-s1" width="48" height="48"></canvas>
+                        <canvas id="bm-gen-s2" width="48" height="48"></canvas>
+                    </div>
+                </div>
+                <div class="bm-vs"><div class="bm-vs__badge">VS</div></div>
+                <div class="bm-side bm-side--disc" id="bm-disc-side">
+                    <div class="bm-side__name">Discriminator</div>
+                    <div class="bm-side__role">Detection Rate</div>
+                    <div class="bm-bignum" id="bm-disc-pct">0%</div>
+                    <div class="bm-bar-wrap"><div class="bm-bar" id="bm-disc-bar" style="width:0%"></div></div>
+                    <div class="bm-side__samples">
+                        <canvas id="bm-disc-s0" width="48" height="48"></canvas>
+                        <canvas id="bm-disc-s1" width="48" height="48"></canvas>
+                        <canvas id="bm-disc-s2" width="48" height="48"></canvas>
+                    </div>
+                </div>
+            </div>
+            <div class="bm-feedback" id="bm-feedback">
+                <div class="bm-feedback__msg" id="bm-msg">Press Start to begin the battle</div>
+                <div class="bm-feedback__sub" id="bm-sub">Round 0</div>
+            </div>
+            <div class="bm-controls">
+                <button class="loop-btn loop-btn--primary" id="bm-start-btn">⚔ Start Battle</button>
+                <button class="loop-btn" id="bm-reset-btn">↻ Reset</button>
+            </div>
+        </div>
+    </section>
+
+    <!-- ===== 13. FINAL OUTPUT ===== -->
+    <section class="gan-section finalout-section" id="final-output">
+        <h2 class="gan-section__title reveal">Final Output Gallery</h2>
+        <p class="gan-section__desc reveal">See the Generator's best results — compare generated images side-by-side with real training data.</p>
+
+        <div class="finalout-wrap reveal">
+            <div class="fo-mode-toggle">
+                <button class="fo-toggle-btn fo-toggle-btn--active" id="fo-btn-gen">🎨 Generated Samples</button>
+                <button class="fo-toggle-btn" id="fo-btn-compare">⚖ Compare Real vs Fake</button>
+            </div>
+            <div class="fo-grid" id="fo-grid">
+                <!-- 8 cards filled by JS -->
+            </div>
+            <div class="fo-controls">
+                <button class="loop-btn loop-btn--primary" id="fo-new-btn">✦ Generate New Samples</button>
+            </div>
+        </div>
+    </section>
+
+    <!-- ===== 14. INTERACTIVE GAN PIPELINE ===== -->
+    <section class="gan-section ganpipe-section" id="gan-pipeline-interactive">
+        <h2 class="gan-section__title reveal">Interactive GAN Pipeline</h2>
+        <p class="gan-section__desc reveal">Draw a digit below, then watch step-by-step how the GAN Generator transforms your input into a generated output.</p>
+        <div class="protip protip--pink reveal">
+            <span class="protip__icon">💡</span>
+            <span class="protip__text"><strong>How does this work?</strong> Your drawing is converted into a <em>latent vector</em> (a list of 100 numbers). This vector is fed into a <strong>real pre-trained ACGAN model</strong> running directly in your browser via TensorFlow.js. The model's neural network layers transform these numbers back into a generated digit — no server needed!</span>
+        </div>
+
+        <div class="ganpipe-wrap reveal">
+            <!-- Progress Steps -->
+            <div class="gp-steps">
+                <div class="gp-step gp-step--active" id="gp-s0"><span class="gp-step__num">1</span><span class="gp-step__name">Input</span></div>
+                <div class="gp-step-line"></div>
+                <div class="gp-step" id="gp-s1"><span class="gp-step__num">2</span><span class="gp-step__name">Preprocess</span></div>
+                <div class="gp-step-line"></div>
+                <div class="gp-step" id="gp-s2"><span class="gp-step__num">3</span><span class="gp-step__name">Encode</span></div>
+                <div class="gp-step-line"></div>
+                <div class="gp-step" id="gp-s3"><span class="gp-step__num">4</span><span class="gp-step__name">Generate</span></div>
+                <div class="gp-step-line"></div>
+                <div class="gp-step" id="gp-s4"><span class="gp-step__num">5</span><span class="gp-step__name">Output</span></div>
+            </div>
+
+            <!-- STEP 1: Upload Image -->
+            <div class="gp-panel gp-panel--active" id="gp-panel-0">
+                <h4 class="gp-panel__title" style="color:#6c9fff">Step 1 — Upload MNIST Digit</h4>
+                <div class="gp-draw-area" style="background:transparent; border:none; height:auto;">
+                    <canvas id="gp-draw-canvas" width="280" height="280" style="display:none;"></canvas>
+                    
+                    <input type="file" id="gp-upload-input" accept="image/png, image/jpeg, image/webp" style="position:absolute; width:1px; height:1px; padding:0; margin:-1px; overflow:hidden; clip:rect(0,0,0,0); border:0;">
+                    <div class="upload-zone" id="upload-zone" style="height: 280px; border: 2px dashed rgba(255,255,255,0.2); border-radius: 12px; display: flex; flex-direction: column; align-items: center; justify-content: center; background: rgba(0,0,0,0.2); cursor: pointer; transition: all 0.2s;">
+                        <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,0.5)" stroke-width="2" style="margin-bottom:16px;">
+                            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+                            <polyline points="17 8 12 3 7 8"></polyline>
+                            <line x1="12" y1="3" x2="12" y2="15"></line>
+                        </svg>
+                        <span style="color:rgba(255,255,255,0.7); font-size:14px;">Drag & Drop an MNIST image here</span>
+                        <span style="color:rgba(255,255,255,0.4); font-size:12px; margin-top:8px;">or click to browse</span>
+                    </div>
+
+                    <div class="gp-draw-actions" style="justify-content:space-between; margin-top:16px;">
+                        <div style="display:flex; align-items:center; gap:8px;">
+                            <select id="gp-target-digit" style="background:#111; color:#fff; border:1px solid rgba(255,255,255,0.2); padding:8px; border-radius:4px; font-size:14px; outline:none; cursor:pointer;">
+                                <option value="auto">Target: Auto-Detect</option>
+                                <option value="0">Target: 0</option>
+                                <option value="1">Target: 1</option>
+                                <option value="2">Target: 2</option>
+                                <option value="3">Target: 3</option>
+                                <option value="4">Target: 4</option>
+                                <option value="5">Target: 5</option>
+                                <option value="6">Target: 6</option>
+                                <option value="7">Target: 7</option>
+                                <option value="8">Target: 8</option>
+                                <option value="9">Target: 9</option>
+                            </select>
+                        </div>
+                        <button class="loop-btn loop-btn--primary" id="gp-process-btn">Process with GAN</button>
+                    </div>
+                </div>
+                <p class="gp-panel__hint">Upload a 28x28 MNIST digit image.</p>
+            </div>
+
+            <!-- STEP 2: Preprocessing -->
+            <div class="gp-panel" id="gp-panel-1">
+                <h4 class="gp-panel__title" style="color:#6c9fff">Step 2 — Preprocessing</h4>
+                <div class="gp-preprocess">
+                    <div class="gp-img-compare">
+                        <div class="gp-img-box"><canvas id="gp-orig" width="80" height="80"></canvas><span>Original</span></div>
+                        <span class="gp-arrow-icon">→</span>
+                        <div class="gp-img-box"><canvas id="gp-processed" width="80" height="80"></canvas><span>28×28 Normalized</span></div>
+                    </div>
+                </div>
+                <p class="gp-panel__hint">Resized to 28×28 grayscale, pixel values normalized to [-1, 1].</p>
+            </div>
+
+            <!-- STEP 3: Latent Encoding -->
+            <div class="gp-panel" id="gp-panel-2">
+                <h4 class="gp-panel__title" style="color:#00cec9">Step 3 — Latent Representation</h4>
+                <div class="gp-latent">
+                    <div class="gp-img-box"><canvas id="gp-latent-src" width="80" height="80"></canvas><span>Processed</span></div>
+                    <span class="gp-arrow-icon">→</span>
+                    <div class="gp-latent-vec-wrap">
+                        <canvas id="gp-latent-vec" width="300" height="60"></canvas>
+                        <span>100-dim latent vector z</span>
+                    </div>
+                </div>
+                <p class="gp-panel__hint">⚠ Simulated mapping to latent space — standard GANs don't include an encoder.</p>
+            </div>
+
+            <!-- STEP 4: Generator -->
+            <div class="gp-panel" id="gp-panel-3">
+                <h4 class="gp-panel__title" style="color:#e84393">Step 4 — Generator Transformation</h4>
+                <div class="gp-generator">
+                    <div class="gp-latent-vec-wrap gp-latent-vec-wrap--sm">
+                        <canvas id="gp-gen-input" width="200" height="40"></canvas><span>Latent z</span>
+                    </div>
+                    <span class="gp-arrow-icon">→</span>
+                    <div class="gp-gen-layers" id="gp-gen-layers">
+                        <canvas id="gp-layer-vis" width="200" height="100"></canvas><span>Dense + Reshape + Conv layers</span>
+                    </div>
+                    <span class="gp-arrow-icon">→</span>
+                    <div class="gp-img-box"><canvas id="gp-gen-out" width="80" height="80"></canvas><span>Raw Output</span></div>
+                </div>
+                <p class="gp-panel__hint">Data flows through fully-connected and convolutional layers to reconstruct an image.</p>
+            </div>
+
+            <!-- STEP 5: Output + Comparison -->
+            <div class="gp-panel" id="gp-panel-4">
+                <h4 class="gp-panel__title" style="color:#fdcb6e">Step 5 — Output & Comparison</h4>
+                <div class="gp-output">
+                    <div class="gp-img-box gp-img-box--lg"><canvas id="gp-final-input" width="120" height="120"></canvas><span>Your Drawing</span></div>
+                    <span class="gp-arrow-icon" style="font-size:1.4rem">⟶</span>
+                    <div class="gp-img-box gp-img-box--lg gp-img-box--gold"><canvas id="gp-final-output" width="120" height="120"></canvas><span>Generated</span></div>
+                </div>
+                <div class="gp-epoch-wrap">
+                    <label>Simulated Epoch</label>
+                    <input type="range" id="gp-epoch-slider" class="genvis-slider" min="1" max="100" value="100">
+                    <span id="gp-epoch-val">100</span>
+                </div>
+                <div class="gp-final-btns">
+                    <button class="loop-btn" id="gp-random-btn">🎲 Random Noise Output</button>
+                    <button class="loop-btn" id="gp-restart-btn">↻ Draw Again</button>
+                </div>
+            </div>
+
+            <!-- Model status -->
+            <div class="gp-model-status" id="gp-model-status">Model: not loaded</div>
+        </div>
+    </section>
+
+    <!-- ===== QUOTE ===== -->
+    <section class="gan-section" id="quote">
+        <div class="gan-quote reveal">
+            <div class="gan-quote__divider"></div>
+            <p class="gan-quote__text">
+                "GAN learns through a <span class="gen-hl">minimax game</span> between <span class="gen-hl">Generator</span> and <span class="disc-hl">Discriminator</span>"
+            </p>
+            <div class="gan-quote__divider"></div>
+            <cite class="gan-quote__author">— Ian Goodfellow, 2014</cite>
+        </div>
+    </section>
+
+    <!-- ===== FOOTER ===== -->
+    <footer class="gan-footer">
+        <p>DeepVision © 2026 · GAN Learning Explainer</p>
+    </footer>
+
+    <script src="gan.js"></script>
+</body>
+</html>
